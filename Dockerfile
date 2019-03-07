@@ -17,6 +17,7 @@ RUN curl -LO https://stable.release.core-os.net/amd64-usr/${VERSION}/coreos_prod
 
 ADD coreos_production_qemu.sh /coreos/coreos_production_qemu.sh
 RUN chmod +x /coreos/coreos_production_qemu.sh
+RUN mkdir /usr/local/etc/qemu
 CMD ["./coreos_production_qemu.sh"]
 ENV VM_BOARD=amd64-usr \
     VM_NAME=coreos_production_qemu-2023-4-0 \
