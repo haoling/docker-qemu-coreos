@@ -1,7 +1,7 @@
 FROM tianon/qemu
 WORKDIR /coreos
 ENV VERSION=2023.4.0
-ADD coreos_production_qemu.sh /coreos//coreos_production_qemu.sh
+ADD coreos_production_qemu.sh /coreos/coreos_production_qemu.sh
 RUN chmod r+x /coreos//coreos_production_qemu.sh
 RUN apt-get update &&\
     apt-get install -y curl gpg bzip2 &&\
