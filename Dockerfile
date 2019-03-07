@@ -30,4 +30,5 @@ ENV VM_BOARD=amd64-usr \
     IGNITION_CONFIG_FILE= \
     CONFIG_IMAGE= \
     MAC_ADDRESS= \
+    VM_NETWORK=bridge \
     BRIDGE_DEVICE=br0
