@@ -1,27 +1,31 @@
 #!/bin/sh
 
 SCRIPT_DIR="`dirname "$0"`"
-VM_NAME='coreos_production_qemu-647-0-0'
-VM_UUID=
-VM_IMAGE='coreos_production_qemu_image.img'
-VM_KERNEL=
-VM_INITRD=
-VM_MEMORY='1024'
-VM_CDROM=
-VM_PFLASH_RO=
-VM_PFLASH_RW=
-VM_NCPUS="`grep -c ^processor /proc/cpuinfo`"
-SSH_PORT=2222
-SSH_KEYS=""
-CONFIG_FILE=""
-CONFIG_IMAGE=""
-SAFE_ARGS=0
+VM_BOARD=${VM_BOARD:-'amd64-usr'}
+VM_NAME=${VM_NAME:-'coreos_production_qemu-1967-6-0'}
+#VM_UUID=
+VM_IMAGE=${VM_IMAGE:-"${SCRIPT_DIR}/coreos_production_qemu_image.img"}
+#VM_KERNEL=
+#VM_INITRD=
+VM_MEMORY=${VM_MEMORY:-'1024'}
+#VM_CDROM=
+#VM_PFLASH_RO=
+#VM_PFLASH_RW=
+VM_NCPUS=${VM_NCPUS:-"`grep -c ^processor /proc/cpuinfo`"}
+VNC_DISPLAY=${VNC_DISPLAY:-0}
+SSH_KEYS=${SSH_KEYS:-""}
+CLOUD_CONFIG_FILE=${CLOUD_CONFIG_FILE:-""}
+IGNITION_CONFIG_FILE=${IGNITION_CONFIG_FILE:-""}
+CONFIG_IMAGE=${CONFIG_IMAGE:-""}
+MAC_ADDRESS=${MAC_ADDRESS:-"$(printf 'DE:AD:BE:EF:%02X:%02X\n' $((RANDOM%256)) $((RANDOM%256)))"}
+SAFE_ARGS=${SAFE_ARGS:-0}
 USAGE="Usage: $0 [-a authorized_keys] [--] [qemu options...]
 Options:
+    -i FILE     File containing an Ignition config
     -u FILE     Cloudinit user-data as either a cloud config or script.
     -c FILE     Config drive as an iso or fat filesystem image.
     -a FILE     SSH public keys for login access. [~/.ssh/id_{dsa,rsa}.pub]
-    -p PORT     The port on localhost to map to the VM's sshd. [2222]
+    -p NUMBER   The display number to map to the VM's vnc. [0]
     -s          Safe settings: single simple cpu and no KVM.
     -h          this ;-)
 
@@ -36,8 +40,13 @@ Any arguments after -a and -p will be passed through to qemu, -- may be
 used as an explicit separator. See the qemu(1) man page for more details.
 "
 
+die(){
+	echo "${1}"
+	exit 1
+}
+
 check_conflict() {
-    if [ -n "${CONFIG_FILE}${CONFIG_IMAGE}${SSH_KEYS}" ]; then
+    if [ -n "${CLOUD_CONFIG_FILE}${CONFIG_IMAGE}${SSH_KEYS}" ]; then
         echo "The -u -c and -a options cannot be combined!" >&2
         exit 1
     fi
@@ -45,9 +54,12 @@ check_conflict() {
 
 while [ $# -ge 1 ]; do
     case "$1" in
+        -i|-ignition-config)
+            IGNITION_CONFIG_FILE="$2"
+            shift 2 ;;
         -u|-user-data)
             check_conflict
-            CONFIG_FILE="$2"
+            CLOUD_CONFIG_FILE="$2"
             shift 2 ;;
         -c|-config-drive)
             check_conflict
@@ -57,12 +69,12 @@ while [ $# -ge 1 ]; do
             check_conflict
             SSH_KEYS="$2"
             shift 2 ;;
-        -p|-ssh-port)
-            SSH_PORT="$2"
-            shift 2 ;;
         -s|-safe)
             SAFE_ARGS=1
             shift ;;
+        -p|-vnc)
+            VNC_DISPLAY="$2"
+            shift 2 ;;
         -v|-verbose)
             set -x
             shift ;;
@@ -119,10 +131,10 @@ if [ -z "${CONFIG_IMAGE}" ]; then
         fi
         echo "$SSH_KEYS_TEXT" | write_ssh_keys > \
             "${CONFIG_DRIVE}/openstack/latest/user_data"
-    elif [ -n "${CONFIG_FILE}" ]; then
-        cp "${CONFIG_FILE}" "${CONFIG_DRIVE}/openstack/latest/user_data"
+    elif [ -n "${CLOUD_CONFIG_FILE}" ]; then
+        cp "${CLOUD_CONFIG_FILE}" "${CONFIG_DRIVE}/openstack/latest/user_data"
         if [ $? -ne 0 ]; then
-            echo "$0: Failed to copy cloudinit file from $CONFIG_FILE" >&2
+            echo "$0: Failed to copy cloudinit file from $CLOUD_CONFIG_FILE" >&2
             exit 1
         fi
     else
@@ -136,8 +148,15 @@ if [ "${SAFE_ARGS}" -eq 1 ]; then
     # Disable KVM, for testing things like UEFI which don't like it
     set -- -machine accel=tcg "$@"
 else
-    # Emulate the host CPU closely in both features and cores.
-    set -- -machine accel=kvm -cpu host -smp "${VM_NCPUS}" "$@"
+    case "${VM_BOARD}+$(uname -m)" in
+        amd64-usr+x86_64)
+            # Emulate the host CPU closely in both features and cores.
+            set -- -machine accel=kvm -cpu host -smp "${VM_NCPUS}" "$@" ;;
+        amd64-usr+*)
+            set -- -machine pc-q35-2.8 -cpu kvm64 -smp 1 -nographic "$@" ;;
+        *)
+            die "Unsupported arch" ;;
+    esac
 fi
 
 # ${CONFIG_DRIVE} or ${CONFIG_IMAGE} will be mounted in CoreOS as /media/configdrive
@@ -152,7 +171,11 @@ if [ -n "${CONFIG_IMAGE}" ]; then
 fi
 
 if [ -n "${VM_IMAGE}" ]; then
-    set -- -drive if=virtio,file="${SCRIPT_DIR}/${VM_IMAGE}" "$@"
+    case "${VM_BOARD}" in
+        amd64-usr)
+            set -- -drive if=virtio,file="${VM_IMAGE}" "$@" ;;
+        *) die "Unsupported arch" ;;
+    esac
 fi
 
 if [ -n "${VM_KERNEL}" ]; then
@@ -168,7 +191,8 @@ if [ -n "${VM_UUID}" ]; then
 fi
 
 if [ -n "${VM_CDROM}" ]; then
-    set -- -cdrom "${SCRIPT_DIR}/${VM_CDROM}" "$@"
+    set -- -boot order=d \
+	-drive file="${SCRIPT_DIR}/${VM_CDROM}",media=cdrom,format=raw "$@"
 fi
 
 if [ -n "${VM_PFLASH_RO}" ] && [ -n "${VM_PFLASH_RW}" ]; then
@@ -177,11 +201,23 @@ if [ -n "${VM_PFLASH_RO}" ] && [ -n "${VM_PFLASH_RW}" ]; then
         -drive if=pflash,file="${SCRIPT_DIR}/${VM_PFLASH_RW}",format=raw "$@"
 fi
 
-# Default to KVM, fall back on full emulation
-qemu-system-x86_64 \
-    -name "$VM_NAME" \
-    -m ${VM_MEMORY} \
-    -net nic,vlan=0,model=virtio \
-    -net user,vlan=0,hostfwd=tcp::"${SSH_PORT}"-:22,hostname="${VM_NAME}" \
-    "$@"
+if [ -n "${IGNITION_CONFIG_FILE}" ]; then
+    set -- -fw_cfg name=opt/com.coreos/config,file="${IGNITION_CONFIG_FILE}" "$@"
+fi
+
+case "${VM_BOARD}" in
+    amd64-usr)
+        # Default to KVM, fall back on full emulation
+        qemu-system-x86_64 \
+            -name "$VM_NAME" \
+            -m ${VM_MEMORY} \
+            -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0 \
+            -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS} \
+            -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
+            -vnc :${VNC_DISPLAY} \
+            "$@"
+        ;;
+    *) die "Unsupported arch" ;;
+esac
+
 exit $?
