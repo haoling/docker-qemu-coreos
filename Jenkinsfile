@@ -1,4 +1,4 @@
-node {
+node(lavel="docker") {
     def app
     stage('Clone repository') {
         checkout scm
