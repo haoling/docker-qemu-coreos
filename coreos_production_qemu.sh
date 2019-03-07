@@ -18,6 +18,7 @@ CLOUD_CONFIG_FILE=${CLOUD_CONFIG_FILE:-""}
 IGNITION_CONFIG_FILE=${IGNITION_CONFIG_FILE:-""}
 CONFIG_IMAGE=${CONFIG_IMAGE:-""}
 MAC_ADDRESS=${MAC_ADDRESS:-"$(printf 'DE:AD:BE:EF:%02X:%02X\n' $((RANDOM%256)) $((RANDOM%256)))"}
+BRIDGE_DEVICE=${BRIDGE_DEVICE:-"br0"}
 SAFE_ARGS=${SAFE_ARGS:-0}
 USAGE="Usage: $0 [-a authorized_keys] [--] [qemu options...]
 Options:
@@ -205,14 +206,20 @@ if [ -n "${IGNITION_CONFIG_FILE}" ]; then
     set -- -fw_cfg name=opt/com.coreos/config,file="${IGNITION_CONFIG_FILE}" "$@"
 fi
 
+if [ -n "${BRIDGE_DEVICE}" ]; then
+    echo allow ${BRIDGE_DEVICE} >/usr/local/etc/qemu/bridge.conf
+    set -- -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0
+else
+    set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}"
+fi
+
 case "${VM_BOARD}" in
     amd64-usr)
         # Default to KVM, fall back on full emulation
         qemu-system-x86_64 \
             -name "$VM_NAME" \
             -m ${VM_MEMORY} \
-            -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0 \
-            -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS} \
+            -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS}
             -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
             -vnc :${VNC_DISPLAY} \
             "$@"
