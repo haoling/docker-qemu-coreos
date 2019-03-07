@@ -219,7 +219,7 @@ case "${VM_BOARD}" in
         qemu-system-x86_64 \
             -name "$VM_NAME" \
             -m ${VM_MEMORY} \
-            -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS}
+            -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS} \
             -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
             -vnc :${VNC_DISPLAY} \
             "$@"
