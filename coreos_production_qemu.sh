@@ -210,10 +210,10 @@ fi
 case "${VM_NETWORK}" in
     bridge)
         echo allow ${BRIDGE_DEVICE} >/usr/local/etc/qemu/bridge.conf
-        set -- -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0
+        set -- -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0 "$@"
         ;;
     user)
-        set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}"
+        set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}" "$@"
         ;;
     *) die "Unknown network type: ${VM_NETWORK}"
 esac
