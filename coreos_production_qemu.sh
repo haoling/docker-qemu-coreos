@@ -216,6 +216,7 @@ case "${VM_NETWORK}" in
         set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}"
         ;;
     *) die "Unknown network type: ${VM_NETWORK}"
+esac
 
 case "${VM_BOARD}" in
     amd64-usr)
