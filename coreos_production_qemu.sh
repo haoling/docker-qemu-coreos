@@ -18,6 +18,7 @@ CLOUD_CONFIG_FILE=${CLOUD_CONFIG_FILE:-""}
 IGNITION_CONFIG_FILE=${IGNITION_CONFIG_FILE:-""}
 CONFIG_IMAGE=${CONFIG_IMAGE:-""}
 MAC_ADDRESS=${MAC_ADDRESS:-"$(printf 'DE:AD:BE:EF:%02X:%02X\n' $((RANDOM%256)) $((RANDOM%256)))"}
+VM_NETWORK=${VM_NETWORK:-"bridge"}
 BRIDGE_DEVICE=${BRIDGE_DEVICE:-"br0"}
 SAFE_ARGS=${SAFE_ARGS:-0}
 USAGE="Usage: $0 [-a authorized_keys] [--] [qemu options...]
@@ -206,12 +207,15 @@ if [ -n "${IGNITION_CONFIG_FILE}" ]; then
     set -- -fw_cfg name=opt/com.coreos/config,file="${IGNITION_CONFIG_FILE}" "$@"
 fi
 
-if [ -n "${BRIDGE_DEVICE}" ]; then
-    echo allow ${BRIDGE_DEVICE} >/usr/local/etc/qemu/bridge.conf
-    set -- -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0
-else
-    set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}"
-fi
+case "${VM_NETWORK}" in
+    bridge)
+        echo allow ${BRIDGE_DEVICE} >/usr/local/etc/qemu/bridge.conf
+        set -- -netdev tap,helper=/usr/local/libexec/qemu-bridge-helper,id=eth0
+        ;;
+    user)
+        set -- -netdev user,id=eth0,hostfwd=tcp::"${SSH_PORT:-22}"-:22,hostname="${VM_NAME}"
+        ;;
+    *) die "Unknown network type: ${VM_NETWORK}"
 
 case "${VM_BOARD}" in
     amd64-usr)
