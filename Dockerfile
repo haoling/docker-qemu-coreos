@@ -15,6 +15,7 @@ RUN curl -LO https://stable.release.core-os.net/amd64-usr/${VERSION}/coreos_prod
     gpg --verify coreos_production_qemu_image.img.bz2.sig &&\
     bzip2 -d coreos_production_qemu_image.img.bz2
 
+CMD ["./coreos_production_qemu.sh"]
 ENV VM_BOARD=amd64-usr \
     VM_NAME=coreos_production_qemu-2023-4-0 \
     VM_IMAGE=/coreos/coreos_production_qemu_image.img \
