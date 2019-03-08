@@ -20,6 +20,10 @@ IGNITION_CONFIG_FILE=${IGNITION_CONFIG_FILE:-""}
 CONFIG_IMAGE=${CONFIG_IMAGE:-""}
 MAC_ADDRESS=${MAC_ADDRESS:-"$(printf 'DE:AD:BE:EF:%02X:%02X\n' $((RANDOM%256)) $((RANDOM%256)))"}
 VM_NETWORK=${VM_NETWORK:-"bridge"}
+#NIC_ADDRESS=
+#NIC_GATEWAY=
+#NIC_DNS1=
+#NIC_DNS2=
 BRIDGE_DEVICE=${BRIDGE_DEVICE:-"br0"}
 SAFE_ARGS=${SAFE_ARGS:-0}
 USAGE="Usage: $0 [-a authorized_keys] [--] [qemu options...]
@@ -149,6 +153,27 @@ if [ -z "${CONFIG_IMAGE}" ]; then
     fi
 
     echo "hostname: ${VM_NAME}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+
+    if [ -n "${NIC_ADDRESS}" ];then
+        echo "coreos:" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "  units:" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "  - name: 10-static.network" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "    runtime: false" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "    content: |" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "      [Match]" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "      Name=eth0" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "      [Network]" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        echo "      Address=${NIC_ADDRESS}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        if [ -n "${NIC_GATEWAY}" ]; then
+            echo "      Gateway=${NIC_GATEWAY}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        fi
+        if [ -n "${NIC_DNS1}" ]; then
+            echo "      DNS=${NIC_DNS1}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        fi
+        if [ -n "${NIC_DNS2}" ]; then
+            echo "      DNS=${NIC_DNS2}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        fi
+    fi
 fi
 
 # Start assembling our default command line arguments
