@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 SCRIPT_DIR="`dirname "$0"`"
 VM_BOARD=${VM_BOARD:-'amd64-usr'}
