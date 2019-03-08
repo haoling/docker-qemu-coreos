@@ -224,6 +224,15 @@ case "${VM_NETWORK}" in
     *) die "Unknown network type: ${VM_NETWORK}"
 esac
 
+case "${VNC_DISPLAY}" in
+    -)
+        set -- -nographic "$@"
+        ;;
+    *)
+        set -- -vnc :${VNC_DISPLAY} "$@"
+        ;;
+esac
+
 case "${VM_BOARD}" in
     amd64-usr)
         # Default to KVM, fall back on full emulation
@@ -232,7 +241,6 @@ case "${VM_BOARD}" in
             -m ${VM_MEMORY} \
             -device virtio-net-pci,netdev=eth0,mac=${MAC_ADDRESS} \
             -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
-            -vnc :${VNC_DISPLAY} \
             "$@"
         ;;
     *) die "Unsupported arch" ;;
