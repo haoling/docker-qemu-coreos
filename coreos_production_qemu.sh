@@ -14,6 +14,7 @@ VM_MEMORY=${VM_MEMORY:-'1024'}
 VM_NCPUS=${VM_NCPUS:-"`grep -c ^processor /proc/cpuinfo`"}
 VNC_DISPLAY=${VNC_DISPLAY:-0}
 SSH_KEYS=${SSH_KEYS:-""}
+SSH_KEYS_TEXT=${SSH_KEYS_TEXT:-""}
 CLOUD_CONFIG_FILE=${CLOUD_CONFIG_FILE:-""}
 IGNITION_CONFIG_FILE=${IGNITION_CONFIG_FILE:-""}
 CONFIG_IMAGE=${CONFIG_IMAGE:-""}
@@ -131,6 +132,9 @@ if [ -z "${CONFIG_IMAGE}" ]; then
             echo "$0: Failed to read SSH keys from $SSH_KEYS" >&2
             exit 1
         fi
+        echo "$SSH_KEYS_TEXT" | write_ssh_keys > \
+            "${CONFIG_DRIVE}/openstack/latest/user_data"
+    elif [ -n "${SSH_KEYS_TEXT}" ]; then
         echo "$SSH_KEYS_TEXT" | write_ssh_keys > \
             "${CONFIG_DRIVE}/openstack/latest/user_data"
     elif [ -n "${CLOUD_CONFIG_FILE}" ]; then
