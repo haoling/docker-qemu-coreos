@@ -5,6 +5,7 @@ VM_BOARD=${VM_BOARD:-'amd64-usr'}
 VM_NAME=${VM_NAME:-'coreos_production_qemu-1967-6-0'}
 #VM_UUID=
 VM_IMAGE=${VM_IMAGE:-"${SCRIPT_DIR}/coreos_production_qemu_image.img"}
+VM_IMAGE_DIFF=${VM_IMAGE_DIFF:-"/var/qemu/disk/diff.qcow2"}
 #VM_KERNEL=
 #VM_INITRD=
 VM_MEMORY=${VM_MEMORY:-'1024'}
@@ -206,7 +207,18 @@ fi
 if [ -n "${VM_IMAGE}" ]; then
     case "${VM_BOARD}" in
         amd64-usr)
-            set -- -drive if=virtio,file="${VM_IMAGE}" "$@" ;;
+            if [ -n "${VM_IMAGE_DIFF}" ]; then
+                if [ ! -f "${VM_IMAGE_DIFF}" ]; then
+                    if [ ! -d "$(dirname "${VM_IMAGE_DIFF}")" ]; then
+                        mkdir -p $(dirname "${VM_IMAGE_DIFF}")
+                    fi
+                    qemu-img create -b "${VM_IMAGE}" -f qcow2 "${VM_IMAGE_DIFF}"
+                fi
+                set -- -drive if=virtio,file="${VM_IMAGE_DIFF}" "$@"
+            else
+                set -- -drive if=virtio,file="${VM_IMAGE}" "$@"
+            fi
+            ;;
         *) die "Unsupported arch" ;;
     esac
 fi
