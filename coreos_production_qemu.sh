@@ -147,6 +147,8 @@ if [ -z "${CONFIG_IMAGE}" ]; then
         find_ssh_keys | write_ssh_keys > \
             "${CONFIG_DRIVE}/openstack/latest/user_data"
     fi
+
+    echo "hostname: ${VM_NAME}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
 fi
 
 # Start assembling our default command line arguments
