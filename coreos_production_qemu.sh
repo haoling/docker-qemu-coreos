@@ -25,6 +25,7 @@ VM_NETWORK=${VM_NETWORK:-"bridge"}
 #NIC_GATEWAY=
 #NIC_DNS1=
 #NIC_DNS2=
+#NIC_DOMAINS=
 BRIDGE_DEVICE=${BRIDGE_DEVICE:-"br0"}
 SAFE_ARGS=${SAFE_ARGS:-0}
 USAGE="Usage: $0 [-a authorized_keys] [--] [qemu options...]
@@ -173,6 +174,9 @@ if [ -z "${CONFIG_IMAGE}" ]; then
         fi
         if [ -n "${NIC_DNS2}" ]; then
             echo "      DNS=${NIC_DNS2}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
+        fi
+        if [ -n "${NIC_DOMAINS}" ]; then
+            echo "      Domains=${NIC_DOMAINS}" >> "${CONFIG_DRIVE}/openstack/latest/user_data"
         fi
     fi
 fi
