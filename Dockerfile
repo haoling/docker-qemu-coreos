@@ -9,7 +9,7 @@ RUN apt-get update &&\
 RUN curl -O https://coreos.com/security/image-signing-key/CoreOS_Image_Signing_Key.asc &&\
     gpg --import --keyid-format LONG CoreOS_Image_Signing_Key.asc
 
-ENV VERSION=2023.4.0
+ENV VERSION=2023.5.0
 RUN curl -LO https://stable.release.core-os.net/amd64-usr/${VERSION}/coreos_production_qemu_image.img.bz2 &&\
     curl -LO https://stable.release.core-os.net/amd64-usr/${VERSION}/coreos_production_qemu_image.img.bz2.sig &&\
     gpg --verify coreos_production_qemu_image.img.bz2.sig &&\
